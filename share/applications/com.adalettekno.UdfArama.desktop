@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=UDF Belge Arama
+Comment=UDF dosyalarında gelişmiş kelime arama programı
+Exec=udfarama
+Icon=com.adalettekno.UdfArama
+Terminal=false
+Categories=Utility;

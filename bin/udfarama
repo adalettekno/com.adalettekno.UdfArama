@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# KDE/Plasmashell entegrasyonunu devre dışı bırakıp Zenity'nin kendi gömülü penceresini zorla aktif et
+export KDE_FULL_SESSION=false
+export DESKTOP_SESSION=gnome
+export XDG_CURRENT_DESKTOP=GNOME
+
+# 1. Hafıza dosyası yolu
+AYAR_DOSYASI="$HOME/.udf_arama_ayari"
+
+# 2. Daha önce hiç klasör seçilmiş mi kontrol et
+if [ -f "$AYAR_DOSYASI" ]; then
+    HEDEF_KLASOR=$(cat "$AYAR_DOSYASI")
+    [ ! -d "$HEDEF_KLASOR" ] && HEDEF_KLASOR=""
+fi
+
+# 3. Eğer ilk açılışsa veya hafızada klasör yoksa DOĞRUDAN gömülü klasör seçiciyi aç
+if [ -z "$HEDEF_KLASOR" ]; then
+    HEDEF_KLASOR=$(zenity --file-selection --directory --modal --title="Arama Yapılacak Üst Klasörü Seçin" --filename="$HOME/")
+
+    # Kullanıcı klasör seçmeden iptal ederse programı kapat
+    [ -z "$HEDEF_KLASOR" ] && exit 0
+
+    # Seçilen ilk klasörü hafızaya kaydet
+    echo "$HEDEF_KLASOR" > "$AYAR_DOSYASI"
+else
+    # Eğer hafızada zaten bir klasör varsa, kullanıcıya sor
+    zenity --question \
+        --title="Klasör Seçimi" \
+        --modal \
+        --text="Mevcut arama klasörü:\n<b>$HEDEF_KLASOR</b>" \
+        --ok-label="Bu Klasörde Ara" \
+        --cancel-label="Klasörü Değiştir"
+
+    # Kullanıcı "Klasörü Değiştir" dediyse yeni klasör seçtir
+    if [ $? -ne 0 ]; then
+        YENI_KLASOR=$(zenity --file-selection --directory --modal --title="Yeni Üst Klasörü Seçin" --filename="$HEDEF_KLASOR")
+
+        # İptal edilirse programı kapat
+        [ -z "$YENI_KLASOR" ] && exit 0
+
+        echo "$YENI_KLASOR" > "$AYAR_DOSYASI"
+        HEDEF_KLASOR=$YENI_KLASOR
+    fi
+fi
+
+# 4. Kullanıcıdan aranacak kelimeyi iste
+KELIME=$(zenity --entry --title="UDF Belge Arama" --modal --text="Aramak istediğiniz ibareyi girin:\n(Konum: $HEDEF_KLASOR)")
+
+# Eğer iptal edilirse veya boş geçilirse programı kapat
+[ -z "$KELIME" ] && exit 0
+
+# Başına/sonuna tırnak konulduysa temizle
+KELIME=$(echo "$KELIME" | tr -d '"')
+
+# 5. Seçilen klasörde alt klasörler dahil derin aramayı başlat
+SONUCLAR=$( (
+    stdbuf -oL grep -rila --include="*.udf" "$KELIME" "$HEDEF_KLASOR"
+    echo "----------------------------------------"
+    echo "✓ ARAMA TAMAMLANDI!"
+) )
+
+# 6. Sonsuz Döngü: Sonuç listesi ekranı
+while true; do
+    SECILEN_DOSYA=$(echo "$SONUCLAR" | zenity --list \
+        --title="UDF Arama Sonuçları - $KELIME" \
+        --column="Bulunan UDF Belgelerinin Yolu" \
+        --width=950 --height=600 \
+        --modal \
+        --text="Konum: $HEDEF_KLASOR\n\nİstediğiniz belgeyi çift tıklayarak açabilirsiniz." \
+        --ok-label="UYAP Editör ile Aç" \
+        --cancel-label="Kapat")
+
+    # Eğer kullanıcı "Kapat" dediyse veya pencereyi kapattıysa döngüden çık
+    if [ $? -ne 0 ] || [ -z "$SECILEN_DOSYA" ]; then
+        break
+    fi
+
+    # Seçilen dosya mevcutsa arka planda UYAP Editör ile aç
+    if [ -f "$SECILEN_DOSYA" ]; then
+        xdg-open "$SECILEN_DOSYA" &
+    fi
+done
+
+exit 0
