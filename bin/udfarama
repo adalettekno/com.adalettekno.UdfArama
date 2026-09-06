@@ -1,30 +1,74 @@
 #!/bin/bash
 
-# KDE/Plasmashell entegrasyonunu devre dışı bırakıp Zenity'nin kendi gömülü penceresini zorla aktif et
+# ==============================================================================
+# 🧠 AKILLI BAĞIMLILIK KONTROLÜ (EVRENSEL ZENITY YÜKLEYİCİ)
+# ==============================================================================
+if ! command -v zenity &> /dev/null; then
+    echo "--------------------------------------------------------"
+    echo "⚠️  UYARI: Grafik arayüz için 'zenity' paketi bulunamadı!"
+    echo "🔍 İşletim sisteminiz otomatik olarak algılanıyor..."
+    echo "--------------------------------------------------------"
+    
+    # Dağıtımı tespit et ve ilgili paket yöneticisiyle yükle
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$ID
+    else
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    fi
+
+    echo "💻 Tespit edilen sistem: $OS"
+    echo "📦 Kurulum başlatılıyor, lütfen sistem şifrenizi girin:"
+    echo "--------------------------------------------------------"
+
+    case "$OS" in
+        ubuntu|debian|pikaos|mint|pop)
+            sudo apt update && sudo apt install -y zenity
+            ;;
+        fedora|rhel|centos)
+            sudo dnf install -y zenity
+            ;;
+        arch|manjaro|endeavouros)
+            sudo pacman -S --noconfirm zenity
+            ;;
+        opensuse*|suse)
+            sudo zypper install -y zenity
+            ;;
+        *)
+            echo "❌ Sisteminiz otomatik tanınamadı. Lütfen 'zenity' paketini elinizle kurun."
+            exit 1
+            ;;
+    esac
+
+    # Kurulum başarılı oldu mu kontrol et
+    if ! command -v zenity &> /dev/null; then
+        echo "❌ Kurulum başarısız oldu. Program çalıştırılamıyor."
+        exit 1
+    fi
+    echo "✅ 'zenity' başarıyla kuruldu! Program başlatılıyor..."
+    sleep 1
+fi
+
+# ==============================================================================
+# 🎬 ANA PROGRAM BAŞLANGICI
+# ==============================================================================
+
 export KDE_FULL_SESSION=false
 export DESKTOP_SESSION=gnome
 export XDG_CURRENT_DESKTOP=GNOME
 
-# 1. Hafıza dosyası yolu
 AYAR_DOSYASI="$HOME/.udf_arama_ayari"
 
-# 2. Daha önce hiç klasör seçilmiş mi kontrol et
 if [ -f "$AYAR_DOSYASI" ]; then
     HEDEF_KLASOR=$(cat "$AYAR_DOSYASI")
     [ ! -d "$HEDEF_KLASOR" ] && HEDEF_KLASOR=""
 fi
 
-# 3. Eğer ilk açılışsa veya hafızada klasör yoksa DOĞRUDAN gömülü klasör seçiciyi aç
 if [ -z "$HEDEF_KLASOR" ]; then
     HEDEF_KLASOR=$(zenity --file-selection --directory --modal --title="Arama Yapılacak Üst Klasörü Seçin" --filename="$HOME/")
-
-    # Kullanıcı klasör seçmeden iptal ederse programı kapat
     [ -z "$HEDEF_KLASOR" ] && exit 0
-
-    # Seçilen ilk klasörü hafızaya kaydet
     echo "$HEDEF_KLASOR" > "$AYAR_DOSYASI"
 else
-    # Eğer hafızada zaten bir klasör varsa, kullanıcıya sor
     zenity --question \
         --title="Klasör Seçimi" \
         --modal \
@@ -32,51 +76,38 @@ else
         --ok-label="Bu Klasörde Ara" \
         --cancel-label="Klasörü Değiştir"
 
-    # Kullanıcı "Klasörü Değiştir" dediyse yeni klasör seçtir
     if [ $? -ne 0 ]; then
         YENI_KLASOR=$(zenity --file-selection --directory --modal --title="Yeni Üst Klasörü Seçin" --filename="$HEDEF_KLASOR")
-
-        # İptal edilirse programı kapat
         [ -z "$YENI_KLASOR" ] && exit 0
-
         echo "$YENI_KLASOR" > "$AYAR_DOSYASI"
         HEDEF_KLASOR=$YENI_KLASOR
     fi
 fi
 
-# 4. Kullanıcıdan aranacak kelimeyi iste
 KELIME=$(zenity --entry --title="UDF Belge Arama" --modal --text="Aramak istediğiniz ibareyi girin:\n(Konum: $HEDEF_KLASOR)")
-
-# Eğer iptal edilirse veya boş geçilirse programı kapat
 [ -z "$KELIME" ] && exit 0
-
-# Başına/sonuna tırnak konulduysa temizle
 KELIME=$(echo "$KELIME" | tr -d '"')
 
-# 5. Seçilen klasörde alt klasörler dahil derin aramayı başlat
 SONUCLAR=$( (
     stdbuf -oL grep -rila --include="*.udf" "$KELIME" "$HEDEF_KLASOR"
     echo "----------------------------------------"
     echo "✓ ARAMA TAMAMLANDI!"
 ) )
 
-# 6. Sonsuz Döngü: Sonuç listesi ekranı
 while true; do
     SECILEN_DOSYA=$(echo "$SONUCLAR" | zenity --list \
         --title="UDF Arama Sonuçları - $KELIME" \
         --column="Bulunan UDF Belgelerinin Yolu" \
         --width=950 --height=600 \
         --modal \
-        --text="Konum: $HEDEF_KLASOR\n\nİstediğiniz belgeyi çift tıklayarak açabilirsiniz." \
-        --ok-label="UYAP Editör ile Aç" \
+        --text="Konum: $HEDEF_KLASOR" \
+        --ok-label="Aç" \
         --cancel-label="Kapat")
 
-    # Eğer kullanıcı "Kapat" dediyse veya pencereyi kapattıysa döngüden çık
     if [ $? -ne 0 ] || [ -z "$SECILEN_DOSYA" ]; then
         break
     fi
 
-    # Seçilen dosya mevcutsa arka planda UYAP Editör ile aç
     if [ -f "$SECILEN_DOSYA" ]; then
         xdg-open "$SECILEN_DOSYA" &
     fi
