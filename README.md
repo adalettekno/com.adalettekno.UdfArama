@@ -24,7 +24,7 @@ Hukukçuların ve adliye personelinin binlerce arşivlenmiş UDF dosyası arası
 Programı bilgisayarınızın sistem menüsüne (Başlat menüsü) logosuyla birlikte kalıcı olarak entegre etmek için terminali açıp şu tek satırlık komutu çalıştırmanız yeterlidir:
 
 ```bash
-curl -sL https://githubusercontent.com | sudo tee /usr/local/bin/udfarama > /dev/null && sudo chmod +x /usr/local/bin/udfarama
+curl -sL https://raw.githubusercontent.com/adalettekno/com.adalettekno.UdfArama/main/bin/udfarama | sudo tee /usr/local/bin/udfarama > /dev/null && sudo chmod +x /usr/local/bin/udfarama
 ```
 
 ### Yöntem 2: Flatpak ile Kurulum (Yakında Mağazalarda!)
