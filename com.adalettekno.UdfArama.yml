@@ -4,10 +4,12 @@ runtime-version: "47"
 sdk: org.gnome.Sdk
 command: udfarama
 finish-args:
-  - --share=ipc
   - --socket=x11
   - --socket=wayland
-  - --filesystem=host
+  - --share=ipc
+  - --filesystem=host:ro
+  # 👇 BU SATIRI EKLEYİN (Masaüstü Portalları ile Konuşma İzni)
+  - --talk-name=org.freedesktop.portal.Desktop
 modules:
   - name: udfarama
     buildsystem: simple
