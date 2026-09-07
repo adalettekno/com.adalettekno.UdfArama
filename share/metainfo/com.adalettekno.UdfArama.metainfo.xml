@@ -13,7 +13,7 @@
   </description>
 
   <launchable type="desktop-id">com.adalettekno.UdfArama.desktop</launchable>
-  <developer_name>Adalettekno</developer_name>
-  <url type="homepage">https://github.com</url>
+  <developer_name>AdaletTekno</developer_name>
+  <url type="homepage">https://www.adalettekno.com</url>
   <content_rating type="oars-1.1" />
 </component>
