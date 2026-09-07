@@ -1,7 +1,7 @@
-id: com.adalettekno.UdfArama
-runtime: org.gnome.Platform
-runtime-version: "47"
-sdk: org.gnome.Sdk
+app-id: com.adalettekno.UdfArama
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
 command: udfarama
 finish-args:
   - --socket=x11
