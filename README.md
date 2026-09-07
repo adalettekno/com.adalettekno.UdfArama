@@ -18,19 +18,12 @@ Hukukçuların ve adliye personelinin binlerce arşivlenmiş UDF dosyası arası
 
 ---
 
-## 🛠️ Kurulum Yöntemleri
+## 🛠️ Kurulum Yöntemi
 
-### Yöntem 1: Yerel Olarak Hızlı Kurulum (Tavsiye Edilen)
-Programı bilgisayarınızın sistem menüsüne (Başlat menüsü) logosuyla birlikte kalıcı olarak entegre etmek için terminali açıp şu tek satırlık komutu çalıştırmanız yeterlidir:
+### Programı bilgisayarınızın sistem menüsüne (Başlat menüsü) logosuyla birlikte kalıcı olarak entegre etmek için terminali açıp şu tek satırlık komutu çalıştırmanız yeterlidir:
 
 ```bash
 curl -sL https://raw.githubusercontent.com/adalettekno/com.adalettekno.UdfArama/main/bin/udfarama | sudo tee /usr/local/bin/udfarama > /dev/null && sudo chmod +x /usr/local/bin/udfarama
-```
-
-### Yöntem 2: Flatpak ile Kurulum (Yakında Mağazalarda!)
-Uygulama Flathub inceleme sürecindedir. Onaylandığında Ubuntu Yazılım Merkezi veya PikaOS Mağazasından tek tıkla kurulabilecektir. Manuel kurmak için:
-```bash
-flatpak install flathub com.adalettekno.UdfArama
 ```
 
 ---
