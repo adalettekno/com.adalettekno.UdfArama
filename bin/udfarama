@@ -1,15 +1,80 @@
-# Tarayıcıda projenizin GitHub sayfasını açacak doğru ve eksiksiz kurumsal yöntem:
-TARGET_URL="https://github.com/adalettekno/com.adalettekno.UdfArama"
+#!/usr/bin/env bash
 
-if [ -f /.flatpak-info ]; then
-    # Flatpak içindeyse, sandbox portalı üzerinden güvenli tetikleme
-    flatpak-spawn --host xdg-open "$TARGET_URL"
-else
-    # Flatpak dışındaysa, sistemin kendi aracıyla tetikleme
-    if command -v xdg-open >/dev/null 2>&1; then
-        xdg-open "$TARGET_URL"
-    else
-        zenity --error --title="Hata" --text="Sistemde varsayılan tarayıcıyı tetikleyecek 'xdg-open' bulunamadı!" 2>/dev/null
+# Katı Güvenlik ve Hata Modu
+set -euo pipefail
+
+# Bağımlılık Kontrolleri
+for cmd in zenity unzip grep; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        zenity --error --title="Kritik Hata" --text="Sistemde gerekli olan '$cmd' aracı bulunamadı!" 2>/dev/null
         exit 1
+    fi
+done
+
+# Hafıza Dizinleri ve Ayarları
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/udfarama"
+CONFIG_FILE="${CONFIG_DIR}/last_dir.txt"
+mkdir -p "$CONFIG_DIR"
+
+# Son çalışılan klasörü hafızadan oku
+LAST_DIR=""
+if [[ -f "$CONFIG_FILE" ]]; then
+    LAST_DIR=$(cat "$CONFIG_FILE")
+fi
+
+# Klasör Seçim Ekranı
+SELECT_NEW=true
+if [[ -n "$LAST_DIR" && -d "$LAST_DIR" ]]; then
+    if zenity --question --title="Klasör Onayı" --text="Son çalışılan klasörde aramaya devam etmek ister misiniz?\n\nKonum: $LAST_DIR" --ok-label="Burada Ara" --cancel-label="Klasörü Değiştir" 2>/dev/null; then
+        SELECT_NEW=false
+    fi
+fi
+
+if [ "$SELECT_NEW" = true ]; then
+    LAST_DIR=$(zenity --file-selection --directory --title="Arama Yapılacak Üst Klasörü Seçin" 2>/dev/null)
+    if [[ -z "$LAST_DIR" ]]; then
+        exit 0
+    fi
+    echo "$LAST_DIR" > "$CONFIG_FILE"
+fi
+
+# Aranacak Kelimeyi Al ve Güvenli Hale Getir
+SEARCH_TERM=$(zenity --entry --title="UDF İçerik Arama" --text="Aranacak kelimeyi veya ibareyi giriniz:" 2>/dev/null)
+if [[ -z "$SEARCH_TERM" ]]; then
+    exit 0
+fi
+SEARCH_TERM="${SEARCH_TERM//\"/}"
+SEARCH_TERM="${SEARCH_TERM//\'/}"
+
+# Geçici Arama Dizini Oluştur
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+# UDF Dosyalarını Tara ve İçeriklerini Ayıkla
+FOUND_FILES=""
+while IFS= read -r -d '' file; do
+    # UDF dosyasından content.xml dosyasını geçici olarak dışarı aktar
+    if unzip -p "$file" content.xml > "$TMP_DIR/content.xml" 2>/dev/null; then
+        # XML içindeki metni küçük/büyük harf duyarsız ara
+        if grep -qi "$SEARCH_TERM" "$TMP_DIR/content.xml"; then
+            FOUND_FILES+="$file\n"
+        fi
+    fi
+done < <(find "$LAST_DIR" -type f -name "*.udf" -print0)
+
+# Sonuçları Göster ve Kullanıcıya Seçtir
+if [[ -z "$FOUND_FILES" ]]; then
+    zenity --info --title="Arama Sonucu" --text="Aranan kelimeye ait hiçbir UDF belgesi bulunamadı." 2>/dev/null
+    exit 0
+fi
+
+SELECTED_FILE=$(echo -e "$FOUND_FILES" | sed '/^$/d' | zenity --list --title="Bulunan UDF Belgeleri" --column="Dosya Yolu" --width=800 --height=600 2>/dev/null)
+
+if [[ -n "$SELECTED_FILE" && -f "$SELECTED_FILE" ]]; then
+    # Seçilen UDF dosyasını sistemin varsayılan UYAP Editörü ile aç
+    if command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$SELECTED_FILE"
+    else
+        zenity --error --title="Hata" --text="Dosyayı açacak varsayılan program (xdg-open) tetiklenemedi." 2>/dev/null
     fi
 fi
