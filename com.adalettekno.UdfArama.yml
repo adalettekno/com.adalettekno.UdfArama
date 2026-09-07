@@ -1,7 +1,7 @@
 app-id: com.adalettekno.UdfArama
 runtime: org.freedesktop.Platform
 runtime-version: '25.08'
-sdk: org.flatpak.Builder
+sdk: org.freedesktop.Platform
 command: udfarama
 finish-args:
   - --socket=x11
