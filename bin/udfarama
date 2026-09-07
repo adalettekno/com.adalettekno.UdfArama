@@ -1,116 +1,15 @@
-#!/bin/bash
+# Tarayıcıda projenizin GitHub sayfasını açacak doğru ve eksiksiz kurumsal yöntem:
+TARGET_URL="https://github.com/adalettekno/com.adalettekno.UdfArama"
 
-# ==============================================================================
-# 🧠 AKILLI BAĞIMLILIK KONTROLÜ (EVRENSEL ZENITY YÜKLEYİCİ)
-# ==============================================================================
-if ! command -v zenity &> /dev/null; then
-    echo "--------------------------------------------------------"
-    echo "⚠️  UYARI: Grafik arayüz için 'zenity' paketi bulunamadı!"
-    echo "🔍 İşletim sisteminiz otomatik olarak algılanıyor..."
-    echo "--------------------------------------------------------"
-    
-    # Dağıtımı tespit et ve ilgili paket yöneticisiyle yükle
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        OS=$ID
+if [ -f /.flatpak-info ]; then
+    # Flatpak içindeyse, sandbox portalı üzerinden güvenli tetikleme
+    flatpak-spawn --host xdg-open "$TARGET_URL"
+else
+    # Flatpak dışındaysa, sistemin kendi aracıyla tetikleme
+    if command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$TARGET_URL"
     else
-        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-    fi
-
-    echo "💻 Tespit edilen sistem: $OS"
-    echo "📦 Kurulum başlatılıyor, lütfen sistem şifrenizi girin:"
-    echo "--------------------------------------------------------"
-
-    case "$OS" in
-        ubuntu|debian|pikaos|mint|pop)
-            sudo apt update && sudo apt install -y zenity
-            ;;
-        fedora|rhel|centos)
-            sudo dnf install -y zenity
-            ;;
-        arch|manjaro|endeavouros)
-            sudo pacman -S --noconfirm zenity
-            ;;
-        opensuse*|suse)
-            sudo zypper install -y zenity
-            ;;
-        *)
-            echo "❌ Sisteminiz otomatik tanınamadı. Lütfen 'zenity' paketini elinizle kurun."
-            exit 1
-            ;;
-    esac
-
-    # Kurulum başarılı oldu mu kontrol et
-    if ! command -v zenity &> /dev/null; then
-        echo "❌ Kurulum başarısız oldu. Program çalıştırılamıyor."
+        zenity --error --title="Hata" --text="Sistemde varsayılan tarayıcıyı tetikleyecek 'xdg-open' bulunamadı!" 2>/dev/null
         exit 1
     fi
-    echo "✅ 'zenity' başarıyla kuruldu! Program başlatılıyor..."
-    sleep 1
 fi
-
-# ==============================================================================
-# 🎬 ANA PROGRAM BAŞLANGICI
-# ==============================================================================
-
-export KDE_FULL_SESSION=false
-export DESKTOP_SESSION=gnome
-export XDG_CURRENT_DESKTOP=GNOME
-
-AYAR_DOSYASI="$HOME/.udf_arama_ayari"
-
-if [ -f "$AYAR_DOSYASI" ]; then
-    HEDEF_KLASOR=$(cat "$AYAR_DOSYASI")
-    [ ! -d "$HEDEF_KLASOR" ] && HEDEF_KLASOR=""
-fi
-
-if [ -z "$HEDEF_KLASOR" ]; then
-    HEDEF_KLASOR=$(zenity --file-selection --directory --modal --title="Arama Yapılacak Üst Klasörü Seçin" --filename="$HOME/")
-    [ -z "$HEDEF_KLASOR" ] && exit 0
-    echo "$HEDEF_KLASOR" > "$AYAR_DOSYASI"
-else
-    zenity --question \
-        --title="Klasör Seçimi" \
-        --modal \
-        --text="Mevcut arama klasörü:\n<b>$HEDEF_KLASOR</b>" \
-        --ok-label="Bu Klasörde Ara" \
-        --cancel-label="Klasörü Değiştir"
-
-    if [ $? -ne 0 ]; then
-        YENI_KLASOR=$(zenity --file-selection --directory --modal --title="Yeni Üst Klasörü Seçin" --filename="$HEDEF_KLASOR")
-        [ -z "$YENI_KLASOR" ] && exit 0
-        echo "$YENI_KLASOR" > "$AYAR_DOSYASI"
-        HEDEF_KLASOR=$YENI_KLASOR
-    fi
-fi
-
-KELIME=$(zenity --entry --title="UDF Belge Arama" --modal --text="Aramak istediğiniz ibareyi girin:\n(Konum: $HEDEF_KLASOR)")
-[ -z "$KELIME" ] && exit 0
-KELIME=$(echo "$KELIME" | tr -d '"')
-
-SONUCLAR=$( (
-    stdbuf -oL grep -rila --include="*.udf" "$KELIME" "$HEDEF_KLASOR"
-    echo "----------------------------------------"
-    echo "✓ ARAMA TAMAMLANDI!"
-) )
-
-while true; do
-    SECILEN_DOSYA=$(echo "$SONUCLAR" | zenity --list \
-        --title="UDF Arama Sonuçları - $KELIME" \
-        --column="Bulunan UDF Belgelerinin Yolu" \
-        --width=950 --height=600 \
-        --modal \
-        --text="Konum: $HEDEF_KLASOR" \
-        --ok-label="Aç" \
-        --cancel-label="Kapat")
-
-    if [ $? -ne 0 ] || [ -z "$SECILEN_DOSYA" ]; then
-        break
-    fi
-
-    if [ -f "$SECILEN_DOSYA" ]; then
-        xdg-open "$SECILEN_DOSYA" &
-    fi
-done
-
-exit 0
