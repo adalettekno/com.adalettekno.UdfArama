@@ -8,7 +8,7 @@ finish-args:
   - --socket=wayland
   - --share=ipc
   - --filesystem=host:ro
-  # 👇 BU SATIRI EKLEYİN (Masaüstü Portalları ile Konuşma İzni)
+  # 👇 (Masaüstü Portalları ile Konuşma İzni)
   - --talk-name=org.freedesktop.portal.Desktop
 modules:
   - name: udfarama
