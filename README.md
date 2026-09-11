@@ -10,10 +10,14 @@ UDF dosyaları ZIP kapsayıcısı olarak açılır ve `content.xml` içeriği UT
 
 ### Yerel test
 
+Gerekli araçlar: `flatpak` ve `flatpak-builder`. Flathub deposu yapılandırılmış olmalıdır.
+Komutları bu deponun ana klasöründe çalıştırın.
+Uygulama kimliği `com.adalettekno.UdfArama`, manifest dosyası `com.adalettekno.UdfArama.yml` olarak kullanılır.
+
 ```bash
 flatpak install flathub org.gnome.Sdk//50 org.gnome.Platform//50
-flatpak-builder --user --install --force-clean build-dir io.github.adalettekno.UdfArama.yml
-flatpak run io.github.adalettekno.UdfArama
+flatpak-builder --user --install --force-clean build-dir com.adalettekno.UdfArama.yml
+flatpak run com.adalettekno.UdfArama
 ```
 
 > Not: Flathub'da GitHub barındırılan uygulama kimlikleri için güncel kuralları kontrol edin. Bu proje mevcut `com.adalettekno.UdfArama` kimliğini korur; `adalettekno.com` alan adı doğrulaması gerekiyorsa Flathub doğrulama adımını ayrıca tamamlayın.
