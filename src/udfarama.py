@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 import os
+import logging
+import lzma
 import threading
 import zipfile
+import zlib
+import unicodedata
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -12,6 +16,11 @@ from gi.repository import Gtk, Gio, GLib
 
 APP_ID = "com.adalettekno.UdfArama"
 APP_NAME = "UDF Belge Arama"
+
+
+def normalize_search_text(text):
+    # Türkçe I/ı ve İ/i çiftlerini, birleşik Unicode yazımlarını koruyarak eşleştir.
+    return unicodedata.normalize("NFC", text).translate(str.maketrans({"I": "ı", "İ": "i"})).casefold()
 
 
 class UdfSearchWindow(Gtk.ApplicationWindow):
@@ -139,44 +148,66 @@ class UdfSearchWindow(Gtk.ApplicationWindow):
     def _search_worker(self, folder, term):
         matches = []
         errors = 0
-        lowered = term.casefold()
+        directory_errors = 0
+        failed = False
 
-        for base, dirs, files in os.walk(folder, followlinks=False):
-            dirs[:] = [d for d in dirs if not os.path.islink(os.path.join(base, d))]
-            for name in files:
-                if not name.lower().endswith(".udf"):
-                    continue
-                path = os.path.join(base, name)
-                try:
-                    with zipfile.ZipFile(path) as archive:
-                        try:
-                            data = archive.read("content.xml")
-                        except KeyError:
-                            errors += 1
-                            continue
-                    text = data.decode("utf-8", errors="replace")
+        def on_walk_error(error):
+            nonlocal directory_errors
+            directory_errors += 1
+
+        try:
+            lowered = normalize_search_text(term)
+            for base, dirs, files in os.walk(folder, followlinks=False, onerror=on_walk_error):
+                dirs[:] = [d for d in dirs if not os.path.islink(os.path.join(base, d))]
+                for name in files:
+                    if not name.lower().endswith(".udf"):
+                        continue
+                    path = os.path.join(base, name)
                     try:
-                        root = ET.fromstring(text)
-                        text = "\n".join(t for t in root.itertext() if t)
-                    except ET.ParseError:
-                        # Eski/bozuk XML yapılarında yine de düz metin aramasını dene.
-                        pass
-                    if lowered in text.casefold():
-                        matches.append(path)
-                except (OSError, zipfile.BadZipFile, RuntimeError):
-                    errors += 1
+                        with zipfile.ZipFile(path) as archive:
+                            try:
+                                data = archive.read("content.xml")
+                            except KeyError:
+                                errors += 1
+                                continue
+                        text = data.decode("utf-8", errors="replace")
+                        try:
+                            root = ET.fromstring(text)
+                            text = "\n".join(t for t in root.itertext() if t)
+                        except ET.ParseError:
+                            # Eski/bozuk XML yapılarında yine de düz metin aramasını dene.
+                            pass
+                        if lowered in normalize_search_text(text):
+                            matches.append(path)
+                    except (OSError, zipfile.BadZipFile, RuntimeError,
+                            EOFError, zlib.error, lzma.LZMAError):
+                        errors += 1
+        except Exception:
+            # Beklenmeyen bir hata da arayüzü meşgul durumda bırakmamalı.
+            logging.exception("UDF araması tamamlanamadı")
+            failed = True
+        finally:
+            GLib.idle_add(self._search_finished, matches, errors, directory_errors, failed)
 
-        GLib.idle_add(self._search_finished, matches, errors)
-
-    def _search_finished(self, matches, errors):
-        for path in matches:
-            self.model.append(path)
-        self.status.set_text(
-            f"Arama tamamlandı: {len(matches)} belge bulundu."
-            + (f" ({errors} dosya okunamadı.)" if errors else "")
-        )
-        self.searching = False
-        self.search_button.set_sensitive(True)
+    def _search_finished(self, matches, errors, directory_errors=0, failed=False):
+        try:
+            for path in matches:
+                self.model.append(path)
+            incomplete = failed or errors or directory_errors
+            message = (
+                f"Arama kısmen tamamlandı: {len(matches)} belge bulundu."
+                if incomplete else f"Arama tamamlandı: {len(matches)} belge bulundu."
+            )
+            if errors:
+                message += f" {errors} dosya okunamadı."
+            if directory_errors:
+                message += f" {directory_errors} klasör taranamadı."
+            if failed:
+                message += " Beklenmeyen bir hata nedeniyle tarama durdu; yeniden deneyin."
+            self.status.set_text(message)
+        finally:
+            self.searching = False
+            self.search_button.set_sensitive(True)
         return GLib.SOURCE_REMOVE
 
     def open_selected(self, list_view, position):
