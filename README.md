@@ -2,6 +2,8 @@
 
 UYAP Doküman Editörü `.udf` dosyalarının içeriğinde hızlı arama yapan Linux masaüstü uygulaması.
 
+Tanıtım ve ayrıntılı bilgi: [UDF Belge Arama — Adalet Tekno](https://www.adalettekno.com/yazilim/udf-belge-arama)
+
 ## Flatpak
 
 Uygulama GTK4/PyGObject kullanır. Klasör seçimi masaüstü dosya seçici portalı üzerinden yapılır; host dosya sistemine geniş erişim izni istemez.
