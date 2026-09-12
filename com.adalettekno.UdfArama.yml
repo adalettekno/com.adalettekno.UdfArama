@@ -5,6 +5,7 @@ sdk: org.gnome.Sdk
 command: udfarama
 
 finish-args:
+  - --device=dri
   - --share=ipc
   - --socket=wayland
   - --socket=fallback-x11
