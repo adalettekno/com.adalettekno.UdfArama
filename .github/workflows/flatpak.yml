@@ -26,12 +26,12 @@ jobs:
           appstreamcli validate --no-net data/com.adalettekno.UdfArama.metainfo.xml
       - name: Build and install Flatpak
         run: |
-          flatpak run --command=flathub-build org.flatpak.Builder --disable-rofiles-fuse --install com.adalettekno.UdfArama.yml
+          dbus-run-session -- flatpak run --command=flathub-build org.flatpak.Builder --disable-rofiles-fuse --install com.adalettekno.UdfArama.yml
       - name: Validate exported package
         run: flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo repo
       - name: Open packaged GTK window on virtual display
         run: |
-          xvfb-run -a flatpak run --socket=x11 --nosocket=wayland --command=python3 com.adalettekno.UdfArama - <<'PY'
+          dbus-run-session -- xvfb-run -a flatpak run --socket=x11 --nosocket=wayland --command=python3 com.adalettekno.UdfArama - <<'PY'
           from pathlib import Path
           source = Path('/app/bin/udfarama').read_text()
           namespace = {}
